@@ -24,9 +24,7 @@ public class StateMachineConfig extends StateMachineConfigurerAdapter<ElevatorSt
         states
                 .withStates()
                 .initial(ElevatorState.IDLE)
-                .states(EnumSet.allOf(ElevatorState.class))
-                .end(ElevatorState.REQUESTED)
-                .end(ElevatorState.DELIVERING);
+                .states(EnumSet.allOf(ElevatorState.class));
     }
 
     @Override
