@@ -36,21 +36,21 @@ public class ElevatorServiceImpl implements ElevatorService {
         final List<Elevator> freeElevators = findFreeElevator();
         final boolean elevatorExistOnSameLevel = freeElevators
                 .stream()
-                .anyMatch(elevator -> Objects.equals(elevator.getLevel(), level)
-                );
+                .anyMatch(elevator -> Objects.equals(elevator.getLevel(), level));
         Elevator elevator;
 
         if (elevatorExistOnSameLevel) {
             elevator = elevatorRepository.findByLevel(level);
         } else {
-             val ref = new Object() {
+            val ref = new Object() {
                 int closestElevatorId = 0;
+                int minDifference = Integer.MAX_VALUE;
             };
             freeElevators
                     .forEach(freeElevator -> {
-                                int minDifference = Integer.MAX_VALUE;
-                                if (Math.min(minDifference, Math.abs(freeElevator.getLevel() - level)) != minDifference) {
+                                if (Math.min(ref.minDifference, Math.abs(freeElevator.getLevel() - level)) != ref.minDifference) {
                                     ref.closestElevatorId = freeElevator.getId();
+                                    ref.minDifference = Math.abs(freeElevator.getLevel() - level);
                                 }
                             }
                     );
