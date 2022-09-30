@@ -8,4 +8,6 @@ public interface ElevatorService {
     List<Elevator> status();
 
     void call(Integer level);
+
+    void request(Integer id, Integer requestLevel);
 }

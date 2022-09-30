@@ -32,13 +32,26 @@ public class ElevatorServiceImpl implements ElevatorService {
         Elevator closestElevator = findClosestIdleElevator(level);
         closestElevator.setTargetLevel(level);
         int differenceLevel = closestElevator.getCurrentLevel() - level;
-
-        if (differenceLevel < 0) {
-            callElevatorFromBottom(differenceLevel, closestElevator);
-        } else if (differenceLevel > 0) {
-            callElevatorFromTop(differenceLevel, closestElevator);
-        }
+        bringElevator(differenceLevel, closestElevator);
         log.debug("Opening door at requested level: " + level);
+    }
+
+    @Override
+    public void request(Integer id, Integer requestLevel) {
+        Elevator requestedElevator = elevatorRepository.findById(id).orElseThrow(NoSuchElementException::new);
+        requestedElevator.setTargetLevel(requestLevel);
+        int currentLevel = requestedElevator.getCurrentLevel();
+        int differenceLevel = currentLevel - requestLevel;
+        log.debug("Closing door at level: " + currentLevel + "\n Destination level: " + requestLevel);
+        bringElevator(differenceLevel, requestedElevator);
+    }
+
+    private void bringElevator(Integer amountOfLevels, Elevator elevator){
+        if (amountOfLevels < 0) {
+            callElevatorFromBottom(amountOfLevels, elevator);
+        } else if (amountOfLevels > 0) {
+            callElevatorFromTop(amountOfLevels, elevator);
+        }
     }
 
     private void callElevatorFromBottom(Integer difference, Elevator elevator) {
