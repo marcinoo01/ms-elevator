@@ -7,7 +7,5 @@ import java.util.List;
 public interface ElevatorService {
     List<Elevator> status();
 
-    void step();
-
     void call(Integer level);
 }
