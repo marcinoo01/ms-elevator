@@ -55,6 +55,7 @@ public class ElevatorServiceImpl implements ElevatorService {
     }
 
     private void callElevatorFromBottom(Integer difference, Elevator elevator) {
+        difference = Math.abs(difference);
         for (int i = 0; i < difference; i++) {
             step();
             elevator.setCurrentLevel(elevator.getCurrentLevel() + 1);
