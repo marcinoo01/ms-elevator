@@ -1,12 +1,11 @@
 package com.example.msselevator.repository;
 
 import com.example.msselevator.domain.Elevator;
-import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.mongodb.repository.ReactiveMongoRepository;
 import org.springframework.stereotype.Repository;
-
-import java.util.List;
+import reactor.core.publisher.Flux;
 
 @Repository
-public interface ElevatorRepository extends JpaRepository<Elevator, Integer> {
-    List<Elevator> findByCurrentLevel(Integer level);
+public interface ElevatorRepository extends ReactiveMongoRepository<Elevator, String> {
+    Flux<Elevator> findByCurrentLevel(Integer level);
 }
