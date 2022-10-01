@@ -1,11 +1,15 @@
 package com.example.msselevator.service;
 
 import com.example.msselevator.domain.Elevator;
-
-import java.util.List;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 public interface ElevatorService {
-    List<Elevator> status();
+    Flux<Elevator> status();
 
-    void call(Integer level);
+    Mono<Elevator> call(Integer level);
+
+    Mono<Elevator> request(String id, Integer requestLevel);
+
+    Flux<Elevator> pickOne();
 }
