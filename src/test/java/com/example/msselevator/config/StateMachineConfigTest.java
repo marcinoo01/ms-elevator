@@ -10,6 +10,8 @@ import org.springframework.statemachine.config.StateMachineFactory;
 
 import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 @SpringBootTest
 class StateMachineConfigTest {
 
@@ -18,12 +20,32 @@ class StateMachineConfigTest {
 
     @Test
     void testMachineStates() {
-        StateMachine<ElevatorState, ElevatorEvent> machine = factory.getStateMachine(UUID.randomUUID());
+        final StateMachine<ElevatorState, ElevatorEvent> machine = factory.getStateMachine(UUID.randomUUID());
         machine.start();
         machine.sendEvent(ElevatorEvent.PICK_LEVEL);
-        machine.sendEvent(ElevatorEvent.CALL_ELEVATOR);
+        assertEquals(ElevatorState.DELIVERING, machine.getState().getId());
         machine.sendEvent(ElevatorEvent.STOP);
+        assertEquals(ElevatorState.IDLE, machine.getState().getId());
         machine.sendEvent(ElevatorEvent.CALL_ELEVATOR);
+        assertEquals(ElevatorState.REQUESTED, machine.getState().getId());
+        machine.sendEvent(ElevatorEvent.STOP);
+        assertEquals(ElevatorState.IDLE, machine.getState().getId());
+    }
+
+    @Test
+    void testInvalidOperation() {
+        final StateMachine<ElevatorState, ElevatorEvent> machine = factory.getStateMachine(UUID.randomUUID());
+        machine.start();
+        machine.sendEvent(ElevatorEvent.PICK_LEVEL);
+        assertEquals(ElevatorState.DELIVERING, machine.getState().getId());
+        machine.sendEvent(ElevatorEvent.CALL_ELEVATOR);
+        assertEquals(ElevatorState.DELIVERING, machine.getState().getId());
+        machine.sendEvent(ElevatorEvent.STOP);
+        assertEquals(ElevatorState.IDLE, machine.getState().getId());
+        machine.sendEvent(ElevatorEvent.CALL_ELEVATOR);
+        assertEquals(ElevatorState.REQUESTED, machine.getState().getId());
+        machine.sendEvent(ElevatorEvent.PICK_LEVEL);
+        assertEquals(ElevatorState.REQUESTED, machine.getState().getId());
     }
 
 }
