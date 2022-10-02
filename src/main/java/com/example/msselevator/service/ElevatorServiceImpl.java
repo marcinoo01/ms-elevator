@@ -30,23 +30,40 @@ public class ElevatorServiceImpl implements ElevatorService {
     @Override
     public void call(Integer level) {
         Elevator closestElevator = findClosestIdleElevator(level);
-        closestElevator.setTargetLevel(level);
+        log.debug(String.format("Closing door at level: %d\n Destination level: %d", closestElevator.getCurrentLevel(), level));
+
         int differenceLevel = closestElevator.getCurrentLevel() - level;
+        closestElevator.setTargetLevel(level);
+        closestElevator.setState(ElevatorState.REQUESTED);
+        elevatorRepository.save(closestElevator);
+
         bringElevator(differenceLevel, closestElevator);
-        log.debug("Opening door at requested level: " + level);
+        log.debug(String.format("Opening door at requested level: %d", level));
+        closestElevator.setState(ElevatorState.IDLE);
+        elevatorRepository.save(closestElevator);
     }
+
 
     @Override
     public void request(Integer id, Integer requestLevel) {
         Elevator requestedElevator = elevatorRepository.findById(id).orElseThrow(NoSuchElementException::new);
+
         requestedElevator.setTargetLevel(requestLevel);
+        requestedElevator.setState(ElevatorState.DELIVERING);
+        elevatorRepository.save(requestedElevator);
+
         int currentLevel = requestedElevator.getCurrentLevel();
         int differenceLevel = currentLevel - requestLevel;
-        log.debug("Closing door at level: " + currentLevel + "\n Destination level: " + requestLevel);
+
+        log.debug(String.format("Closing door at level: %d\n Destination level: %d", currentLevel, requestLevel));
         bringElevator(differenceLevel, requestedElevator);
+        log.debug(String.format("Opening door at requested level: %d", requestLevel));
+
+        requestedElevator.setState(ElevatorState.IDLE);
+        elevatorRepository.save(requestedElevator);
     }
 
-    private void bringElevator(Integer amountOfLevels, Elevator elevator){
+    private void bringElevator(Integer amountOfLevels, Elevator elevator) {
         if (amountOfLevels < 0) {
             callElevatorFromBottom(amountOfLevels, elevator);
         } else if (amountOfLevels > 0) {
@@ -59,6 +76,7 @@ public class ElevatorServiceImpl implements ElevatorService {
         for (int i = 0; i < difference; i++) {
             step();
             elevator.setCurrentLevel(elevator.getCurrentLevel() + 1);
+            elevatorRepository.save(elevator);
         }
     }
 
@@ -66,6 +84,7 @@ public class ElevatorServiceImpl implements ElevatorService {
         for (int i = 0; i < difference; i++) {
             step();
             elevator.setCurrentLevel(elevator.getCurrentLevel() - 1);
+            elevatorRepository.save(elevator);
         }
     }
 
@@ -81,10 +100,8 @@ public class ElevatorServiceImpl implements ElevatorService {
 
         final List<Elevator> freeElevators = findFreeElevator();
         final boolean elevatorExistOnSameLevel = checkIfElevatorExistsOnSame(level, freeElevators);
-        Elevator elevator;
-
         if (elevatorExistOnSameLevel) {
-            elevator = findOneElevatorAtSpecific(level);
+            return findOneElevatorAtSpecific(level);
         } else {
             val ref = new Object() {
                 int closestElevatorId = 0;
@@ -100,9 +117,8 @@ public class ElevatorServiceImpl implements ElevatorService {
                                 }
                             }
                     );
-            elevator = elevatorRepository.findById(ref.closestElevatorId).orElseThrow(NoSuchElementException::new);
+            return elevatorRepository.findById(ref.closestElevatorId).orElseThrow(NoSuchElementException::new);
         }
-        return elevator;
     }
 
     private List<Elevator> findFreeElevator() {

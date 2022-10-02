@@ -29,6 +29,7 @@ public class ElevatorController {
     @PatchMapping
     public ResponseEntity<Void> callForElevator(@RequestBody Integer level) {
         elevatorService.call(level);
+        System.out.println(Thread.currentThread().getName());
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
 
