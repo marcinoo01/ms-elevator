@@ -7,11 +7,7 @@ import com.example.msselevator.repository.ElevatorRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import lombok.val;
-import org.springframework.messaging.Message;
-import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.statemachine.StateMachine;
-import org.springframework.statemachine.config.StateMachineFactory;
-import org.springframework.statemachine.support.DefaultStateMachineContext;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -19,17 +15,17 @@ import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
+import static java.lang.String.format;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class ElevatorServiceImpl implements ElevatorService {
 
     private static final Integer LEVEL_CHANGE_SECONDS_TIME = 5;
-    public static final String ELEVATOR_ID_HEADER = "elevator_id";
 
     private final ElevatorRepository elevatorRepository;
-    private final StateMachineFactory<ElevatorState, ElevatorEvent> stateMachineFactory;
-    private final ElevatorStateChangeListener elevatorStateChangeListener;
+    private final ElevatorMachine elevatorMachine;
 
     @Override
     public List<Elevator> status() {
@@ -39,41 +35,42 @@ public class ElevatorServiceImpl implements ElevatorService {
     @Override
     public void call(Integer level) {
         final Elevator closestElevator = findClosestIdleElevator(level);
-        log.debug(String.format("Closing door at level: %d\n Destination level: %d", closestElevator.getCurrentLevel(), level));
-
         final int differenceLevel = closestElevator.getCurrentLevel() - level;
-        closestElevator.setTargetLevel(level);
+        final StateMachine<ElevatorState, ElevatorEvent> stateMachine = elevatorMachine.build(closestElevator.getId());
 
-        final StateMachine<ElevatorState, ElevatorEvent> stateMachine = build(closestElevator.getId());
-        sendEvent(closestElevator.getId(), stateMachine, ElevatorEvent.CALL_ELEVATOR);
-        elevatorRepository.save(closestElevator);
+        log.debug(format("Elevator id = %d : Closing door at level: %d\n Destination level: %d", closestElevator.getId(),
+                closestElevator.getCurrentLevel(), level));
+
+        closestElevator.setTargetLevel(level);
+        elevatorMachine.sendEvent(closestElevator.getId(), stateMachine, ElevatorEvent.CALL_ELEVATOR);
 
         bringElevator(differenceLevel, closestElevator);
-        sendEvent(closestElevator.getId(), stateMachine, ElevatorEvent.STOP);
-        log.debug(String.format("Opening door at requested level: %d", level));
-
-        elevatorRepository.save(closestElevator);
+        elevatorMachine.sendEvent(closestElevator.getId(), stateMachine, ElevatorEvent.STOP);
+        log.debug(format("Elevator id = %d : Opening door at requested level: %d", closestElevator.getId(), level));
     }
 
 
     @Override
     public void request(Integer id, Integer requestLevel) {
-        final Elevator requestedElevator = elevatorRepository.findById(id).orElseThrow(NoSuchElementException::new);
+        final Elevator requestedElevator = findElevatorById(id);
+        final int differenceLevel = requestedElevator.getCurrentLevel() - requestLevel;
+        final StateMachine<ElevatorState, ElevatorEvent> stateMachine = elevatorMachine.build(id);
+
+        log.debug(format("Elevator id = %d : Closing door at level: %d\n Destination level: %d", requestedElevator.getId(),
+                requestedElevator.getCurrentLevel(), requestLevel));
 
         requestedElevator.setTargetLevel(requestLevel);
-        final StateMachine<ElevatorState, ElevatorEvent> stateMachine = build(id);
-        sendEvent(id, stateMachine, ElevatorEvent.PICK_LEVEL);
+        elevatorMachine.sendEvent(id, stateMachine, ElevatorEvent.PICK_LEVEL);
 
-        elevatorRepository.save(requestedElevator);
-        final int currentLevel = requestedElevator.getCurrentLevel();
-        final int differenceLevel = currentLevel - requestLevel;
-
-        log.debug(String.format("Closing door at level: %d\n Destination level: %d", currentLevel, requestLevel));
         bringElevator(differenceLevel, requestedElevator);
-        log.debug(String.format("Opening door at requested level: %d", requestLevel));
+        elevatorMachine.sendEvent(id, stateMachine, ElevatorEvent.STOP);
+        log.debug(format("Elevator id = %d : Opening door at requested level: %d", requestedElevator.getId(), requestLevel));
+    }
 
-        sendEvent(id, stateMachine, ElevatorEvent.STOP);
-        elevatorRepository.save(requestedElevator);
+    private Elevator findElevatorById(Integer id) {
+        return elevatorRepository
+                .findById(id)
+                .orElseThrow(NoSuchElementException::new);
     }
 
     private void bringElevator(Integer amountOfLevels, Elevator elevator) {
@@ -110,9 +107,9 @@ public class ElevatorServiceImpl implements ElevatorService {
     }
 
     private Elevator findClosestIdleElevator(Integer level) {
+        final List<Elevator> idleElevator = findIdleElevator();
+        final boolean elevatorExistOnSameLevel = checkIfElevatorExistsOnSame(level, idleElevator);
 
-        final List<Elevator> freeElevators = findFreeElevator();
-        final boolean elevatorExistOnSameLevel = checkIfElevatorExistsOnSame(level, freeElevators);
         if (elevatorExistOnSameLevel) {
             return findOneElevatorAtSpecific(level);
         } else {
@@ -120,7 +117,7 @@ public class ElevatorServiceImpl implements ElevatorService {
                 int closestElevatorId = 0;
                 int minDifference = Integer.MAX_VALUE;
             };
-            freeElevators
+            idleElevator
                     .forEach(freeElevator -> {
                                 int levelDifference = Math.abs(freeElevator.getCurrentLevel() - level);
 
@@ -134,7 +131,7 @@ public class ElevatorServiceImpl implements ElevatorService {
         }
     }
 
-    private List<Elevator> findFreeElevator() {
+    private List<Elevator> findIdleElevator() {
         return elevatorRepository
                 .findAll()
                 .stream()
@@ -154,26 +151,5 @@ public class ElevatorServiceImpl implements ElevatorService {
                 .stream()
                 .findFirst()
                 .orElseThrow(NoSuchElementException::new);
-    }
-
-    private void sendEvent(Integer elevatorId, StateMachine<ElevatorState, ElevatorEvent> stateMachine, ElevatorEvent event) {
-        Message<ElevatorEvent> message = MessageBuilder.withPayload(event)
-                .setHeader(ELEVATOR_ID_HEADER, elevatorId)
-                .build();
-        stateMachine.sendEvent(message);
-    }
-
-    private StateMachine<ElevatorState, ElevatorEvent> build(Integer elevatorId) {
-        Elevator elevator = elevatorRepository.getReferenceById(elevatorId);
-        StateMachine<ElevatorState, ElevatorEvent> stateMachine = stateMachineFactory
-                .getStateMachine(Integer.toString(elevator.getId()));
-        stateMachine.stop();
-        stateMachine.getStateMachineAccessor()
-                .doWithAllRegions(sma -> {
-                    sma.addStateMachineInterceptor(elevatorStateChangeListener);
-                    sma.resetStateMachine(new DefaultStateMachineContext<>(elevator.getState(), null, null, null));
-                });
-        stateMachine.start();
-        return stateMachine;
     }
 }
