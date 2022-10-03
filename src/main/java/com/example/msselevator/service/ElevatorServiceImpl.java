@@ -7,6 +7,7 @@ import com.example.msselevator.repository.ElevatorRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import lombok.val;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.statemachine.StateMachine;
 import org.springframework.stereotype.Service;
 
@@ -22,10 +23,11 @@ import static java.lang.String.format;
 @Slf4j
 public class ElevatorServiceImpl implements ElevatorService {
 
-    private static final Integer LEVEL_CHANGE_SECONDS_TIME = 5;
-
     private final ElevatorRepository elevatorRepository;
     private final ElevatorMachine elevatorMachine;
+
+    @Value("${mss-elevator.request.sleep.seconds}")
+    private Integer sleepTime;
 
     @Override
     public List<Elevator> status() {
@@ -67,12 +69,6 @@ public class ElevatorServiceImpl implements ElevatorService {
         log.debug(format("Elevator id = %d : Opening door at requested level: %d", requestedElevator.getId(), requestLevel));
     }
 
-    private Elevator findElevatorById(Integer id) {
-        return elevatorRepository
-                .findById(id)
-                .orElseThrow(NoSuchElementException::new);
-    }
-
     private void bringElevator(Integer amountOfLevels, Elevator elevator) {
         if (amountOfLevels < 0) {
             callElevatorFromBottom(amountOfLevels, elevator);
@@ -100,7 +96,7 @@ public class ElevatorServiceImpl implements ElevatorService {
 
     private void step() {
         try {
-            TimeUnit.SECONDS.sleep(LEVEL_CHANGE_SECONDS_TIME);
+            TimeUnit.SECONDS.sleep(sleepTime);
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
@@ -127,8 +123,14 @@ public class ElevatorServiceImpl implements ElevatorService {
                                 }
                             }
                     );
-            return elevatorRepository.findById(ref.closestElevatorId).orElseThrow(NoSuchElementException::new);
+            return findElevatorById(ref.closestElevatorId);
         }
+    }
+
+    private Elevator findElevatorById(Integer id) {
+        return elevatorRepository
+                .findById(id)
+                .orElseThrow(() -> new NoSuchElementException(String.format("Requested elevator with id: %d does not exist", id)));
     }
 
     private List<Elevator> findIdleElevator() {
