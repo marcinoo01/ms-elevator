@@ -6,11 +6,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.statemachine.config.EnableStateMachineFactory;
 import org.springframework.statemachine.config.StateMachineConfigurerAdapter;
-import org.springframework.statemachine.config.builders.StateMachineConfigurationConfigurer;
 import org.springframework.statemachine.config.builders.StateMachineStateConfigurer;
 import org.springframework.statemachine.config.builders.StateMachineTransitionConfigurer;
-import org.springframework.statemachine.listener.StateMachineListenerAdapter;
-import org.springframework.statemachine.state.State;
 
 import java.util.EnumSet;
 
@@ -37,16 +34,5 @@ public class StateMachineConfig extends StateMachineConfigurerAdapter<ElevatorSt
                 .withExternal().source(ElevatorState.REQUESTED).target(ElevatorState.IDLE).event(ElevatorEvent.STOP)
                 .and()
                 .withExternal().source(ElevatorState.DELIVERING).target(ElevatorState.IDLE).event(ElevatorEvent.STOP);
-    }
-
-    @Override
-    public void configure(StateMachineConfigurationConfigurer<ElevatorState, ElevatorEvent> config) throws Exception {
-        final StateMachineListenerAdapter<ElevatorState, ElevatorEvent> adapter = new StateMachineListenerAdapter<>() {
-            @Override
-            public void stateChanged(State<ElevatorState, ElevatorEvent> from, State<ElevatorState, ElevatorEvent> to) {
-                log.info(String.format("stateChanged(from: %s, to: %s)", from, to));
-            }
-        };
-        config.withConfiguration().listener(adapter);
     }
 }
