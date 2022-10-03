@@ -4,6 +4,7 @@ import com.example.msselevator.domain.Elevator;
 import com.example.msselevator.service.ElevatorService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -21,7 +22,7 @@ public class ElevatorController {
 
     private final ElevatorService elevatorService;
 
-    @GetMapping
+    @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<List<Elevator>> getElevators() {
         return ResponseEntity.ok(elevatorService.status());
     }

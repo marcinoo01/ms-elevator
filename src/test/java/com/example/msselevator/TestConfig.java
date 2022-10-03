@@ -1,4 +1,4 @@
-package com.example.msselevator.config;
+package com.example.msselevator;
 
 import com.example.msselevator.domain.ElevatorEvent;
 import com.example.msselevator.domain.ElevatorState;
